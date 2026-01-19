@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { type Document, Schema } from "mongoose";
 import { hashValue, compareValue } from "../../common/utils/bcrypt";
 
 interface UserPreferences {
@@ -50,7 +50,7 @@ userSchema.methods.comparePassword = async function (value: string) {
 };
 
 userSchema.set("toJSON", {
-	transform: function (_doc, ret) {
+	transform: (_doc, ret) => {
 		delete ret.password;
 		delete ret.userPreferences.twoFactorSecret;
 		return ret;
