@@ -1,5 +1,5 @@
 import mongoose, { type Document, Schema } from "mongoose";
-import { generateUniqueCode } from "../../configs/uuid";
+import { generateUniqueCode } from "../../common/utils/uuid";
 import type { VerificationEnum } from "../../common/enums/verification-code-enums"
 
 

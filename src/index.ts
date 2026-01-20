@@ -9,12 +9,13 @@ import { connectDatabase } from "./database/database";
 import { asyncHandler } from "./middlewares/asyncHandler.middleware";
 import { errorHandler } from "./middlewares/errorHandler.middleware";
 import { notFoundHandler } from "./middlewares/notFound.middleware";
+import authRoutes from "./modules/auth/auth.route";
 
 // Initialize process-level error handlers (must be done early)
 initializeProcessHandlers();
 
 const app = express();
-// const BASE_PATH = Env.BASE_PATH;
+const BASE_PATH = Env.BASE_PATH;
 
 // Middleware
 app.use(express.json());
@@ -43,6 +44,8 @@ app.get(
 		});
 	}),
 );
+
+app.use(`${BASE_PATH}/auth`, authRoutes);
 
 // 404 Handler - must be after all routes but before error handler
 app.use(notFoundHandler);
