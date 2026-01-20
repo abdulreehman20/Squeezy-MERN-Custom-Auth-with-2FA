@@ -39,7 +39,7 @@ app.get(
 	asyncHandler(async (_req: Request, res: Response) => {
 		res.status(HTTPSTATUS.OK).json({
 			message: "Server is healthy",
-			status: "OK",
+			status: "OK",	
 			timestamp: new Date().toISOString(),
 		});
 	}),
