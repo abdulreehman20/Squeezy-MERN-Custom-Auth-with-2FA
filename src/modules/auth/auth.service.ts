@@ -5,7 +5,7 @@ import { ErrorCodeEnum } from "../../common/enums/error-code.enum";
 import { calculateExpirationDate, fortyFiveMinutesFromNow, ONE_DAY_IN_MS } from "../../common/utils/date-time";
 import VerificationCodeModel from "../../database/models/verification.model";
 import { VerificationEnum } from "../../common/enums/verification-code-enums";
-import { refreshTokenSignOptions, RefreshTPayload, signJwtToken, verifyJwtToken } from "../../common/utils/jwt";
+import { refreshTokenSignOptions, type RefreshTPayload, signJwtToken, verifyJwtToken } from "../../common/utils/jwt";
 import type { LoginDto, RegisterDto } from "../../common/interface/auth.interface";
 import { Env } from "../../configs/env.config";
 

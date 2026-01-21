@@ -1,5 +1,5 @@
 import { Env } from "../../configs/env.config";
-import { CookieOptions, Response } from "express";
+import type { CookieOptions, Response } from "express";
 import { calculateExpirationDate } from "./date-time";
 
 type CookiePayloadType = {
