@@ -23,6 +23,19 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: Env.FRONTEND_ORIGIN, credentials: true }));
 
+app.use((req, res, next) => {
+	const start = Date.now();
+
+	res.on("finish", () => {
+		const ms = Date.now() - start;
+		console.log(
+			`${req.method} ${req.originalUrl} -> ${res.statusCode} (${ms}ms)`,
+		);
+	});
+
+	next();
+});
+
 // Routes
 app.get(
 	"/",
@@ -39,7 +52,7 @@ app.get(
 	asyncHandler(async (_req: Request, res: Response) => {
 		res.status(HTTPSTATUS.OK).json({
 			message: "Server is healthy",
-			status: "OK",	
+			status: "OK",
 			timestamp: new Date().toISOString(),
 		});
 	}),

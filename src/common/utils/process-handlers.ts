@@ -7,14 +7,10 @@ import { Env } from "../../configs/env.config";
 export const handleUnhandledRejection = (): void => {
 	process.on(
 		"unhandledRejection",
-		(_reason: unknown, _promise: Promise<unknown>) => {
-			// In production, we might want to exit the process
-			// In development, we can continue for debugging
+		(reason: unknown, _promise: Promise<unknown>) => {
+			console.error("Unhandled rejection:", reason);
 			if (Env.NODE_ENV === "production") {
-				// Give time for cleanup
-				setTimeout(() => {
-					process.exit(1);
-				}, 1000);
+				setTimeout(() => process.exit(1), 1000);
 			}
 		},
 	);
@@ -25,9 +21,11 @@ export const handleUnhandledRejection = (): void => {
  * This catches synchronous errors that weren't caught
  */
 export const handleUncaughtException = (): void => {
-	process.on("uncaughtException", (_error: Error) => {
-		// Uncaught exceptions are critical - exit the process
-		process.exit(1);
+	process.on("uncaughtException", (error: Error) => {
+		console.error("Uncaught exception:", error);
+		if (Env.NODE_ENV === "production") {
+			process.exit(1);
+		}
 	});
 };
 
