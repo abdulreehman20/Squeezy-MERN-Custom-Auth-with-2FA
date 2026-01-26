@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import type { AuthService } from "./auth.service";
 import { HTTPSTATUS } from "../../configs/http.config";
 import { asyncHandler } from "../../middlewares/asyncHandler.middleware";
-import { loginSchema, registerSchema } from "../../common/validators/auth.validator";
+import { emailSchema, loginSchema, registerSchema, verificationEmailSchema } from "../../common/validators/auth.validator";
 import { getAccessTokenCookieOptions, getRefreshTokenCookieOptions, setAuthenticationCookies } from "../../common/utils/cookie";
 import { UnauthorizedException } from "../../common/utils/app-error";
 
@@ -70,5 +70,27 @@ export class AuthController {
 				message: "Token refreshed successfully",
 			});
 		},
+	);
+
+	public verifyEmail = asyncHandler(
+		async (req: Request, res: Response): Promise<void> => {
+			const { code } = verificationEmailSchema.parse(req.body);
+			await this.authService.verifyEmail(code);
+
+			res.status(HTTPSTATUS.OK).json({
+				message: "Email verified successfully",
+			});
+		}
+	);
+
+	public forgotPassword = asyncHandler(
+		async (req: Request, res: Response): Promise<void> => {
+			const email = emailSchema.parse(req.body.email);
+			await this.authService.forgotPassword(email);
+
+			res.status(HTTPSTATUS.OK).json({
+				message: "Password reset email sent",
+			});
+		}
 	);
 }

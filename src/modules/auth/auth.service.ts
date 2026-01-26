@@ -1,13 +1,15 @@
 import UserModel from "../../database/models/user.model";
 import SessionModel from "../../database/models/session.model";
-import { BadRequestException, UnauthorizedException } from "../../common/utils/app-error";
+import { BadRequestException, InternalServerException, NotFoundException, TooManyRequestsException, UnauthorizedException } from "../../common/utils/app-error";
 import { ErrorCodeEnum } from "../../common/enums/error-code.enum";
-import { calculateExpirationDate, fortyFiveMinutesFromNow, ONE_DAY_IN_MS } from "../../common/utils/date-time";
+import { anHourFromNow, calculateExpirationDate, fortyFiveMinutesFromNow, ONE_DAY_IN_MS, threeMinutesAgo } from "../../common/utils/date-time";
 import VerificationCodeModel from "../../database/models/verification.model";
 import { VerificationEnum } from "../../common/enums/verification-code-enums";
 import { refreshTokenSignOptions, type RefreshTPayload, signJwtToken, verifyJwtToken } from "../../common/utils/jwt";
 import type { LoginDto, RegisterDto } from "../../common/interface/auth.interface";
 import { Env } from "../../configs/env.config";
+import { sendEmail } from "../../mailers/mailer";
+import { passwordResetTemplate, verifyEmailTemplate } from "../../mailers/template";
 
 export class AuthService {
 	public async register(registerDto: RegisterDto) {
@@ -29,11 +31,16 @@ export class AuthService {
 
 		const userId = newUser._id;
 
-		const _verification = await VerificationCodeModel.create({
+		const verification = await VerificationCodeModel.create({
 			userId,
 			type: VerificationEnum.EMAIL_VERIFICATION,
 			expiredAt: fortyFiveMinutesFromNow(),
 		});
+
+		// Sending verification email link Add This
+		const verificationUrl = `${Env.FRONTEND_ORIGIN}/confirm-account?code=${verification.code}`;
+		await sendEmail({ to: newUser.email, ...verifyEmailTemplate(verificationUrl) });
+
 
 		return { user: newUser };
 	}
@@ -127,5 +134,76 @@ export class AuthService {
 			accessToken,
 			newRefreshToken,
 		};
+	}
+
+	public async verifyEmail(code: string) {
+		const validCode = await VerificationCodeModel.findOne({
+			code: code,
+			type: VerificationEnum.EMAIL_VERIFICATION,
+			expiresAt: { $gt: new Date() },
+		});
+
+		if (!validCode) {
+			throw new BadRequestException("Invalid or expired verification code");
+		}
+
+		const updatedUser = await UserModel.findByIdAndUpdate(
+			validCode.userId,
+			{
+				isEmailVerified: true,
+			},
+			{ new: true }
+		);
+
+		if (!updatedUser) {
+			throw new BadRequestException(
+				"Unable to verify email address",
+				ErrorCodeEnum.DB_VALIDATION_ERROR);
+		}
+
+		await validCode.deleteOne();
+		return { user: updatedUser };
+	}
+
+	public async forgotPassword(email: string) {
+		const user = await UserModel.findOne({ email: email });
+
+		if (!user) {
+			throw new NotFoundException("User not found");
+		}
+
+		//check mail rate limit is 2 emails per 3 or 10 min
+		const timeAgo = threeMinutesAgo();
+		const maxAttempts = 2;
+
+		const count = await VerificationCodeModel.countDocuments({
+			userId: user._id,
+			type: VerificationEnum.PASSWORD_RESET,
+			createdAt: { $gt: timeAgo },
+		});
+
+		if (count >= maxAttempts) {
+			throw new TooManyRequestsException(
+				"Too many request, try again later",
+				ErrorCodeEnum.RATE_429
+			);
+		}
+
+		const expiresAt = anHourFromNow();
+		const validCode = await VerificationCodeModel.create({
+			userId: user._id,
+			type: VerificationEnum.PASSWORD_RESET,
+			expiresAt,
+		});
+
+		const resetLink = `${Env.FRONTEND_ORIGIN}/reset-password?code=${validCode.code}&exp=${expiresAt.getTime()}`;
+
+		const { data, error } = await sendEmail({ to: user.email, ...passwordResetTemplate(resetLink) });
+
+		if (!data?.id) {
+			throw new InternalServerException(`${error?.name} ${error?.message}`);
+		}
+
+		return { url: resetLink, emailId: data.id };
 	}
 }
