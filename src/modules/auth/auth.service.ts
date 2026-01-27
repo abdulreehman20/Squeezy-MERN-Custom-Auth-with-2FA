@@ -41,7 +41,6 @@ export class AuthService {
 		const verificationUrl = `${Env.FRONTEND_ORIGIN}/confirm-account?code=${verification.code}`;
 		await sendEmail({ to: newUser.email, ...verifyEmailTemplate(verificationUrl) });
 
-
 		return { user: newUser };
 	}
 
@@ -136,32 +135,75 @@ export class AuthService {
 		};
 	}
 
+	// public async verifyEmail(code: string) {
+	// 	const validCode = await VerificationCodeModel.findOne({
+	// 		code: code,
+	// 		type: VerificationEnum.EMAIL_VERIFICATION,
+	// 		expiresAt: { $gt: new Date() },
+	// 	});
+
+	// 	if (!validCode) {
+	// 		throw new BadRequestException("Invalid or expired verification code");
+	// 	}
+
+	// 	const updatedUser = await UserModel.findByIdAndUpdate(
+	// 		validCode.userId,
+	// 		{ isEmailVerified: true },
+	// 		{ new: true }
+	// 	);
+
+	// 	if (!updatedUser) {
+	// 		throw new BadRequestException(
+	// 			"Unable to verify email address",
+	// 			ErrorCodeEnum.DB_VALIDATION_ERROR);
+	// 	}
+
+	// 	await validCode.deleteOne();
+	// 	return { user: updatedUser };
+	// }
+
 	public async verifyEmail(code: string) {
-		const validCode = await VerificationCodeModel.findOne({
-			code: code,
+		// Trim the code to ensure no whitespace issues
+		const trimmedCode = code.trim();
+
+		// First check if code exists at all (even if expired)
+		const codeExists = await VerificationCodeModel.findOne({
+			code: trimmedCode,
 			type: VerificationEnum.EMAIL_VERIFICATION,
-			expiresAt: { $gt: new Date() },
 		});
 
-		if (!validCode) {
-			throw new BadRequestException("Invalid or expired verification code");
+		if (!codeExists) {
+			throw new BadRequestException(
+				"Invalid verification code",
+				ErrorCodeEnum.VAL_400
+			);
 		}
 
+		// Check if code is expired
+		const now = new Date();
+		if (codeExists.expiredAt <= now) {
+			throw new BadRequestException(
+				"Verification code has expired. Please request a new one",
+				ErrorCodeEnum.VAL_400
+			);
+		}
+
+		// Verify the user exists and update
 		const updatedUser = await UserModel.findByIdAndUpdate(
-			validCode.userId,
-			{
-				isEmailVerified: true,
-			},
+			codeExists.userId,
+			{ isEmailVerified: true },
 			{ new: true }
 		);
 
 		if (!updatedUser) {
 			throw new BadRequestException(
 				"Unable to verify email address",
-				ErrorCodeEnum.DB_VALIDATION_ERROR);
+				ErrorCodeEnum.DB_VALIDATION_ERROR
+			);
 		}
 
-		await validCode.deleteOne();
+		// Delete the used verification code
+		await codeExists.deleteOne();
 		return { user: updatedUser };
 	}
 
@@ -193,7 +235,7 @@ export class AuthService {
 		const validCode = await VerificationCodeModel.create({
 			userId: user._id,
 			type: VerificationEnum.PASSWORD_RESET,
-			expiresAt,
+			expiredAt: expiresAt,
 		});
 
 		const resetLink = `${Env.FRONTEND_ORIGIN}/reset-password?code=${validCode.code}&exp=${expiresAt.getTime()}`;
