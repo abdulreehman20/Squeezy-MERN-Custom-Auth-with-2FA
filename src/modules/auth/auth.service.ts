@@ -1,15 +1,39 @@
 import UserModel from "../../database/models/user.model";
 import SessionModel from "../../database/models/session.model";
-import { BadRequestException, InternalServerException, NotFoundException, TooManyRequestsException, UnauthorizedException } from "../../common/utils/app-error";
+import {
+	BadRequestException,
+	InternalServerException,
+	NotFoundException,
+	TooManyRequestsException,
+	UnauthorizedException,
+} from "../../common/utils/app-error";
 import { ErrorCodeEnum } from "../../common/enums/error-code.enum";
-import { anHourFromNow, calculateExpirationDate, fortyFiveMinutesFromNow, ONE_DAY_IN_MS, threeMinutesAgo } from "../../common/utils/date-time";
+import {
+	anHourFromNow,
+	calculateExpirationDate,
+	fortyFiveMinutesFromNow,
+	ONE_DAY_IN_MS,
+	threeMinutesAgo,
+} from "../../common/utils/date-time";
 import VerificationCodeModel from "../../database/models/verification.model";
 import { VerificationEnum } from "../../common/enums/verification-code-enums";
-import { refreshTokenSignOptions, type RefreshTPayload, signJwtToken, verifyJwtToken } from "../../common/utils/jwt";
-import type { LoginDto, RegisterDto, resetPasswordDto } from "../../common/interface/auth.interface";
+import {
+	refreshTokenSignOptions,
+	type RefreshTPayload,
+	signJwtToken,
+	verifyJwtToken,
+} from "../../common/utils/jwt";
+import type {
+	LoginDto,
+	RegisterDto,
+	resetPasswordDto,
+} from "../../common/interface/auth.interface";
 import { Env } from "../../configs/env.config";
 import { sendEmail } from "../../mailers/mailer";
-import { passwordResetTemplate, verifyEmailTemplate } from "../../mailers/template";
+import {
+	passwordResetTemplate,
+	verifyEmailTemplate,
+} from "../../mailers/template";
 import { hashValue } from "../../common/utils/bcrypt";
 
 export class AuthService {
@@ -40,7 +64,10 @@ export class AuthService {
 
 		// Sending verification email link Add This
 		const verificationUrl = `${Env.FRONTEND_ORIGIN}/confirm-account?code=${verification.code}`;
-		await sendEmail({ to: newUser.email, ...verifyEmailTemplate(verificationUrl) });
+		await sendEmail({
+			to: newUser.email,
+			...verifyEmailTemplate(verificationUrl),
+		});
 
 		return { user: newUser };
 	}
@@ -82,15 +109,14 @@ export class AuthService {
 		const accessToken = signJwtToken({
 			userId: user._id,
 			sessionId: session._id,
-		})
+		});
 
 		const refreshToken = signJwtToken(
 			{ sessionId: session._id },
-			refreshTokenSignOptions
+			refreshTokenSignOptions,
 		);
 
 		return { user, accessToken, refreshToken, mfaRequired: false };
-
 	}
 
 	public async refreshToken(refreshToken: string) {
@@ -117,13 +143,13 @@ export class AuthService {
 			session.expiredAt.getTime() - now <= ONE_DAY_IN_MS;
 
 		if (sessionRequireRefresh) {
-			session.expiredAt = calculateExpirationDate(
-				Env.JWT.REFRESH_EXPIRES_IN
-			);
+			session.expiredAt = calculateExpirationDate(Env.JWT.REFRESH_EXPIRES_IN);
 			await session.save();
 		}
 
-		const newRefreshToken = sessionRequireRefresh ? signJwtToken({ sessionId: session._id }, refreshTokenSignOptions) : undefined;
+		const newRefreshToken = sessionRequireRefresh
+			? signJwtToken({ sessionId: session._id }, refreshTokenSignOptions)
+			: undefined;
 
 		const accessToken = signJwtToken({
 			userId: session.userId,
@@ -137,10 +163,8 @@ export class AuthService {
 	}
 
 	public async verifyEmail(code: string) {
-		// Trim the code to ensure no whitespace issues
 		const trimmedCode = code.trim();
 
-		// First check if code exists at all (even if expired)
 		const codeExists = await VerificationCodeModel.findOne({
 			code: trimmedCode,
 			type: VerificationEnum.EMAIL_VERIFICATION,
@@ -149,34 +173,31 @@ export class AuthService {
 		if (!codeExists) {
 			throw new BadRequestException(
 				"Invalid verification code",
-				ErrorCodeEnum.VAL_400
+				ErrorCodeEnum.VAL_400,
 			);
 		}
 
-		// Check if code is expired
 		const now = new Date();
 		if (codeExists.expiredAt <= now) {
 			throw new BadRequestException(
 				"Verification code has expired. Please request a new one",
-				ErrorCodeEnum.VAL_400
+				ErrorCodeEnum.VAL_400,
 			);
 		}
 
-		// Verify the user exists and update
 		const updatedUser = await UserModel.findByIdAndUpdate(
 			codeExists.userId,
 			{ isEmailVerified: true },
-			{ new: true }
+			{ new: true },
 		);
 
 		if (!updatedUser) {
 			throw new BadRequestException(
 				"Unable to verify email address",
-				ErrorCodeEnum.DB_VALIDATION_ERROR
+				ErrorCodeEnum.DB_VALIDATION_ERROR,
 			);
 		}
 
-		// Delete the used verification code
 		await codeExists.deleteOne();
 		return { user: updatedUser };
 	}
@@ -188,7 +209,6 @@ export class AuthService {
 			throw new NotFoundException("User not found");
 		}
 
-		//check mail rate limit is 2 emails per 3 or 10 min
 		const timeAgo = threeMinutesAgo();
 		const maxAttempts = 2;
 
@@ -201,7 +221,7 @@ export class AuthService {
 		if (count >= maxAttempts) {
 			throw new TooManyRequestsException(
 				"Too many request, try again later",
-				ErrorCodeEnum.RATE_429
+				ErrorCodeEnum.RATE_429,
 			);
 		}
 
@@ -214,7 +234,10 @@ export class AuthService {
 
 		const resetLink = `${Env.FRONTEND_ORIGIN}/reset-password?code=${validCode.code}&exp=${expiresAt.getTime()}`;
 
-		const { data, error } = await sendEmail({ to: user.email, ...passwordResetTemplate(resetLink) });
+		const { data, error } = await sendEmail({
+			to: user.email,
+			...passwordResetTemplate(resetLink),
+		});
 
 		if (!data?.id) {
 			throw new InternalServerException(`${error?.name} ${error?.message}`);
@@ -232,27 +255,33 @@ export class AuthService {
 		});
 
 		if (!codeExists) {
-			throw new NotFoundException("Invalid verification code", ErrorCodeEnum.USR_404);
+			throw new NotFoundException(
+				"Invalid verification code",
+				ErrorCodeEnum.USR_404,
+			);
 		}
 
 		const now = new Date();
 		if (codeExists.expiredAt <= now) {
 			throw new BadRequestException(
 				"Verification code has expired. Please request a new one",
-				ErrorCodeEnum.VAL_400
+				ErrorCodeEnum.VAL_400,
 			);
 		}
 
 		const hashedPassword = await hashValue(password);
 
 		const updatedUser = await UserModel.findByIdAndUpdate(
-			codeExists.userId,	
+			codeExists.userId,
 			{ password: hashedPassword },
-			{ new: true }
+			{ new: true },
 		);
 
 		if (!updatedUser) {
-			throw new BadRequestException("Failed to reset password", ErrorCodeEnum.DB_VALIDATION_ERROR);
+			throw new BadRequestException(
+				"Failed to reset password",
+				ErrorCodeEnum.DB_VALIDATION_ERROR,
+			);
 		}
 
 		await codeExists.deleteOne();
@@ -262,4 +291,7 @@ export class AuthService {
 		return { user: updatedUser };
 	}
 
+	public async logout(sessionId: string) {
+		return await SessionModel.findByIdAndDelete(sessionId);
+	}
 }

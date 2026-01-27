@@ -10,6 +10,7 @@ import { asyncHandler } from "./middlewares/asyncHandler.middleware";
 import { errorHandler } from "./middlewares/errorHandler.middleware";
 import { notFoundHandler } from "./middlewares/notFound.middleware";
 import authRoutes from "./modules/auth/auth.route";
+import passport from "./middlewares/passport";
 
 // Initialize process-level error handlers (must be done early)
 initializeProcessHandlers();
@@ -22,6 +23,9 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: Env.FRONTEND_ORIGIN, credentials: true }));
+
+app.use(cookieParser());
+app.use(passport.initialize());
 
 app.use((req, res, next) => {
 	const start = Date.now();

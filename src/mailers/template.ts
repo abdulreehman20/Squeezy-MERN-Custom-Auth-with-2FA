@@ -1,7 +1,10 @@
-export const verifyEmailTemplate = (url: string, brandColor: string = "#2563EB") => ({
-    subject: "Confirm your Squeezy account",
-    text: `Please verify your email address by clicking the following link: ${url}`,
-    html: `
+export const verifyEmailTemplate = (
+	url: string,
+	brandColor: string = "#2563EB",
+) => ({
+	subject: "Confirm your Squeezy account",
+	text: `Please verify your email address by clicking the following link: ${url}`,
+	html: `
       <html><head><style>
         body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); }
@@ -29,10 +32,13 @@ export const verifyEmailTemplate = (url: string, brandColor: string = "#2563EB")
     `,
 });
 
-export const passwordResetTemplate = (url: string, brandColor: string = "#2563EB") => ({
-    subject: "Reset Your Password",
-    text: `To reset your password, please click the following link: ${url}`,
-    html: `
+export const passwordResetTemplate = (
+	url: string,
+	brandColor: string = "#2563EB",
+) => ({
+	subject: "Reset Your Password",
+	text: `To reset your password, please click the following link: ${url}`,
+	html: `
       <html><head><style>
         body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); }

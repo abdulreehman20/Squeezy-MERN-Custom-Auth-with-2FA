@@ -2,9 +2,23 @@ import type { Request, Response } from "express";
 import type { AuthService } from "./auth.service";
 import { HTTPSTATUS } from "../../configs/http.config";
 import { asyncHandler } from "../../middlewares/asyncHandler.middleware";
-import { emailSchema, loginSchema, registerSchema, resetPasswordSchema, verificationEmailSchema } from "../../common/validators/auth.validator";
-import { clearAuthenticationCookies, getAccessTokenCookieOptions, getRefreshTokenCookieOptions, setAuthenticationCookies } from "../../common/utils/cookie";
-import { UnauthorizedException } from "../../common/utils/app-error";
+import {
+	emailSchema,
+	loginSchema,
+	registerSchema,
+	resetPasswordSchema,
+	verificationEmailSchema,
+} from "../../common/validators/auth.validator";
+import {
+	clearAuthenticationCookies,
+	getAccessTokenCookieOptions,
+	getRefreshTokenCookieOptions,
+	setAuthenticationCookies,
+} from "../../common/utils/cookie";
+import {
+	NotFoundException,
+	UnauthorizedException,
+} from "../../common/utils/app-error";
 
 export class AuthController {
 	private authService: AuthService;
@@ -55,20 +69,28 @@ export class AuthController {
 
 	public refreshToken = asyncHandler(
 		async (req: Request, res: Response): Promise<void> => {
-			const refreshToken = req.cookies?.refreshToken as string || undefined;
+			const refreshToken = (req.cookies?.refreshToken as string) || undefined;
 			if (!refreshToken) {
 				throw new UnauthorizedException("Refresh token missing");
 			}
 
-			const { accessToken, newRefreshToken } = await this.authService.refreshToken(refreshToken);
+			const { accessToken, newRefreshToken } =
+				await this.authService.refreshToken(refreshToken);
 
 			if (newRefreshToken) {
-				res.cookie("refreshToken", newRefreshToken, getRefreshTokenCookieOptions());
+				res.cookie(
+					"refreshToken",
+					newRefreshToken,
+					getRefreshTokenCookieOptions(),
+				);
 			}
 
-			res.status(HTTPSTATUS.OK).cookie("accessToken", accessToken, getAccessTokenCookieOptions()).json({
-				message: "Token refreshed successfully",
-			});
+			res
+				.status(HTTPSTATUS.OK)
+				.cookie("accessToken", accessToken, getAccessTokenCookieOptions())
+				.json({
+					message: "Token refreshed successfully",
+				});
 		},
 	);
 
@@ -80,7 +102,7 @@ export class AuthController {
 			res.status(HTTPSTATUS.OK).json({
 				message: "Email verified successfully",
 			});
-		}
+		},
 	);
 
 	public forgotPassword = asyncHandler(
@@ -91,7 +113,7 @@ export class AuthController {
 			res.status(HTTPSTATUS.OK).json({
 				message: "Password reset email sent",
 			});
-		}
+		},
 	);
 
 	public resetPassword = asyncHandler(
@@ -100,7 +122,23 @@ export class AuthController {
 
 			await this.authService.resePassword(body);
 
-			return clearAuthenticationCookies(res).status(HTTPSTATUS.OK).json({ message: "Reset Password successfully" });
-		}
+			return clearAuthenticationCookies(res)
+				.status(HTTPSTATUS.OK)
+				.json({ message: "Reset Password successfully" });
+		},
+	);
+
+	public logout = asyncHandler(
+		async (req: Request, res: Response): Promise<any> => {
+			const sessionId = (req as any).sessionId;
+			if (!sessionId) {
+				throw new NotFoundException("Session is invalid.");
+			}
+
+			await this.authService.logout(sessionId);
+			return clearAuthenticationCookies(res).status(HTTPSTATUS.OK).json({
+				message: "User logout successfully",
+			});
+		},
 	);
 }
