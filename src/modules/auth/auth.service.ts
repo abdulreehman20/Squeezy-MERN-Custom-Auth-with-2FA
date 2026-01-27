@@ -6,10 +6,11 @@ import { anHourFromNow, calculateExpirationDate, fortyFiveMinutesFromNow, ONE_DA
 import VerificationCodeModel from "../../database/models/verification.model";
 import { VerificationEnum } from "../../common/enums/verification-code-enums";
 import { refreshTokenSignOptions, type RefreshTPayload, signJwtToken, verifyJwtToken } from "../../common/utils/jwt";
-import type { LoginDto, RegisterDto } from "../../common/interface/auth.interface";
+import type { LoginDto, RegisterDto, resetPasswordDto } from "../../common/interface/auth.interface";
 import { Env } from "../../configs/env.config";
 import { sendEmail } from "../../mailers/mailer";
 import { passwordResetTemplate, verifyEmailTemplate } from "../../mailers/template";
+import { hashValue } from "../../common/utils/bcrypt";
 
 export class AuthService {
 	public async register(registerDto: RegisterDto) {
@@ -135,33 +136,6 @@ export class AuthService {
 		};
 	}
 
-	// public async verifyEmail(code: string) {
-	// 	const validCode = await VerificationCodeModel.findOne({
-	// 		code: code,
-	// 		type: VerificationEnum.EMAIL_VERIFICATION,
-	// 		expiresAt: { $gt: new Date() },
-	// 	});
-
-	// 	if (!validCode) {
-	// 		throw new BadRequestException("Invalid or expired verification code");
-	// 	}
-
-	// 	const updatedUser = await UserModel.findByIdAndUpdate(
-	// 		validCode.userId,
-	// 		{ isEmailVerified: true },
-	// 		{ new: true }
-	// 	);
-
-	// 	if (!updatedUser) {
-	// 		throw new BadRequestException(
-	// 			"Unable to verify email address",
-	// 			ErrorCodeEnum.DB_VALIDATION_ERROR);
-	// 	}
-
-	// 	await validCode.deleteOne();
-	// 	return { user: updatedUser };
-	// }
-
 	public async verifyEmail(code: string) {
 		// Trim the code to ensure no whitespace issues
 		const trimmedCode = code.trim();
@@ -248,4 +222,44 @@ export class AuthService {
 
 		return { url: resetLink, emailId: data.id };
 	}
+
+	public async resePassword({ password, verificationCode }: resetPasswordDto) {
+		const trimmedCode = verificationCode.trim();
+
+		const codeExists = await VerificationCodeModel.findOne({
+			code: trimmedCode,
+			type: VerificationEnum.PASSWORD_RESET,
+		});
+
+		if (!codeExists) {
+			throw new NotFoundException("Invalid verification code", ErrorCodeEnum.USR_404);
+		}
+
+		const now = new Date();
+		if (codeExists.expiredAt <= now) {
+			throw new BadRequestException(
+				"Verification code has expired. Please request a new one",
+				ErrorCodeEnum.VAL_400
+			);
+		}
+
+		const hashedPassword = await hashValue(password);
+
+		const updatedUser = await UserModel.findByIdAndUpdate(
+			codeExists.userId,	
+			{ password: hashedPassword },
+			{ new: true }
+		);
+
+		if (!updatedUser) {
+			throw new BadRequestException("Failed to reset password", ErrorCodeEnum.DB_VALIDATION_ERROR);
+		}
+
+		await codeExists.deleteOne();
+
+		await SessionModel.deleteMany({ userId: updatedUser._id });
+
+		return { user: updatedUser };
+	}
+
 }
