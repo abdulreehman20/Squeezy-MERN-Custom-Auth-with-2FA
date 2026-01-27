@@ -11,6 +11,8 @@ import { errorHandler } from "./middlewares/errorHandler.middleware";
 import { notFoundHandler } from "./middlewares/notFound.middleware";
 import authRoutes from "./modules/auth/auth.route";
 import passport from "./middlewares/passport";
+import mfaRoutes from "./modules/mfa/mfa.route";
+
 
 // Initialize process-level error handlers (must be done early)
 initializeProcessHandlers();
@@ -62,6 +64,8 @@ app.get(
 );
 
 app.use(`${BASE_PATH}/auth`, authRoutes);
+app.use(`${BASE_PATH}/mfa`, mfaRoutes);
+
 
 // 404 Handler - must be after all routes but before error handler
 app.use(notFoundHandler);
