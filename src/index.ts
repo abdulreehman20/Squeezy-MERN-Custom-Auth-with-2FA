@@ -23,8 +23,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({ origin: Env.FRONTEND_ORIGIN, credentials: true }));
-
-app.use(cookieParser());
+// @ts-expect-error - passport types conflict with express types, but runtime is compatible
 app.use(passport.initialize());
 
 app.use((req, res, next) => {
